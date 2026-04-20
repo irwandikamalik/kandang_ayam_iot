@@ -46,7 +46,7 @@ DHT dht(DHTPIN, DHTTYPE);
 #define MQ135_PIN 34
 MQ135 gasSensor = MQ135(MQ135_PIN);
 
-// 🔥 TIMER
+// TIMER
 unsigned long lastSend = 0;
 const long interval = 1 * 1000; // 1 Second
 unsigned long lastTimer = 0;
@@ -57,6 +57,13 @@ bool is_feeding = false;
 unsigned long feeding_start_time = 0;
 const unsigned long feeding_duration = 5000; // 5 detik
 
+// State Controller
+bool env_state = false; 
+
+// Global Variable Sensor
+float suhu = 0;
+float humidity = 0;
+float gas = 0;
 
 void setup() {
   Serial.begin(115200);
@@ -166,6 +173,7 @@ void loop() {
   }
 
   HandleFeeding();
+  controllerAuto(suhu, humidity, gas);
 }
 
 
@@ -205,6 +213,27 @@ void HandleFeeding() {
     is_feeding = false;
 
     Serial.println("Feeding finished");
+  }
+}
+
+void controllerAuto(float suhu, float humidity, float gas) {
+
+  // KONDISI NYALA
+  if (!env_state && (gas > 20 || suhu > 32 || humidity > 60)) {
+    relayKipas.on();
+    relayHumidifier.on();
+
+    env_state = true;
+    Serial.println("⚠️ AUTO ON (Lingkungan tidak normal)");
+  }
+
+  // KONDISI MATI (hysteresis biar stabil)
+  else if (env_state && (gas < 18 && suhu < 30 && humidity < 55)) {
+    relayKipas.off();
+    relayHumidifier.off();
+
+    env_state = false;
+    Serial.println("AUTO OFF (Lingkungan normal)");
   }
 }
 
