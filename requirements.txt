@@ -1,0 +1,16 @@
+Flask
+pyserial
+mysql-connector-python
+ultralytics
+opencv-python
+numpy
+lap
+scipy
+matplotlib
+pillow
+pyyaml
+tqdm
+seaborn
+psutil
+filterpy
+

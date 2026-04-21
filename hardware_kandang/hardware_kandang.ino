@@ -27,8 +27,8 @@ Servo servo3;
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 
 // WIFI
-const char* ssid = "Beranda Tengah.id-ext";
-const char* password = "tubruksusu216a";
+const char* ssid = "akaii";
+const char* password = "akaiakai";
 
 //NTP Timer
 WiFiUDP ntpUDP;
@@ -64,6 +64,8 @@ bool env_state = false;
 float suhu = 0;
 float humidity = 0;
 float gas = 0;
+
+bool debug = false;
 
 void setup() {
   Serial.begin(115200);
@@ -122,7 +124,9 @@ void loop() {
     }
 
 
+    sendSerialData(suhu, humidity, gas);
 
+    if (debug) {
     //Debug Data
     Serial.println("====== DATA ======");
     Serial.print("Suhu: "); Serial.println(suhu);
@@ -135,6 +139,7 @@ void loop() {
     Serial.print(timeClient.getMinutes());
     Serial.print(":");
     Serial.println(timeClient.getSeconds());
+    }
 
     //Tampilan LCD
     lcd.clear();
@@ -237,3 +242,12 @@ void controllerAuto(float suhu, float humidity, float gas) {
   }
 }
 
+void sendSerialData(float suhu, float humidity, float gas) {
+  String json = "{";
+  json += "\"suhu\":" + String(suhu, 2) + ",";
+  json += "\"humidity\":" + String(humidity, 2) + ",";
+  json += "\"gas\":" + String(gas, 2);
+  json += "}";
+
+  Serial.println(json);
+}

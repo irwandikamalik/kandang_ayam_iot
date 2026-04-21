@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Dashboard IoT</title>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+body {
+    margin: 0;
+    font-family: Arial;
+    display: flex;
+    background: #0f172a;
+    color: white;
+    text-align: center;
+}
+
+/* SIDEBAR */
+.sidebar {
+    width: 200px;
+    height: 250vh;
+    background: #1e293b;
+    padding: 20px;
+}
+
+.sidebar h2 {
+    text-align: center;
+}
+
+.sidebar a {
+    display: block;
+    padding: 10px;
+    margin: 10px 0;
+    color: white;
+    text-decoration: none;
+    border-radius: 5px;
+}
+
+.sidebar a:hover {
+    background: #334155;
+}
+
+/* CONTENT */
+.content {
+    flex: 1;
+    padding: 20px;
+}
+
+ /* CARD */
+.card-container {
+    display: flex;
+    justify-content: center;
+    gap: 10%;
+    margin-bottom: 20px;
+    width: 100%;
+}
+
+.card {
+    display: inline-block;
+    background: #1e293b;
+    padding: 20px;
+    margin: 10px;
+    border-radius: 15px;
+    width: 200px;
+    text-align: center;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+}
+
+.card p {
+    font-size: 30px;
+    font-weight: bold;
+}
+
+
+
+/* PAGE */
+.page {
+    display: none;
+}
+
+.active {
+    display: block;
+}
+
+/* TABLE */
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+th, td {
+    padding: 10px;
+    border-bottom: 1px solid #444;
+}
+</style>
+
+</head>
+<body>
+<!-- SIDEBAR -->
+<div class="sidebar">
+    <h2>📊 IoT</h2>
+    <a href="#" onclick="showPage('home')">🏠 Home</a>
+    <a href="#" onclick="showPage('data')">📄 Data</a>
+</div>
+
+<!-- CONTENT -->
+<div class="content">
+
+    <!-- HOME (GRAPH) -->
+    <div id="home" class="page active">
+
+        <div class="card-container">
+            <div class="card">
+                <h3>Suhu</h3>
+                <p id="suhu">-</p>
+            </div>
+
+            <div class="card">
+                <h3>Humidity</h3>
+                <p id="humidity">-</p>
+            </div>
+
+            <div class="card">
+                <h3>Gas</h3>
+                <p id="gas">-</p>
+            </div>
+        </div>
+
+        <h2>🌡️ Suhu & Humidity</h2>
+        <canvas id="chart1"></canvas>
+
+        <h2>🧪 Gas</h2>
+        <canvas id="chart2"></canvas>
+
+    </div>
+
+    <!-- DATA TABLE -->
+    <div id="data" class="page">
+        <h1>📄 Data Sensor</h1>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Waktu</th>
+                    <th>Suhu</th>
+                    <th>Humidity</th>
+                    <th>Gas</th>
+                </tr>
+            </thead>
+            <tbody id="table-body"></tbody>
+        </table>
+    </div>
+
+</div>
+
+<script>
+    let chart1, chart2;
+    let lastChartId = null;
+    let isChartFirstLoad = true;
+    let lastDataId = null;
+    let isFirstLoad = true;
+
+    function showPage(pageId) {
+        document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+        document.getElementById(pageId).classList.add("active");
+    }
+
+    function initChart() {
+        // Chart 1 (Suhu + Humidity)
+        const ctx1 = document.getElementById('chart1').getContext('2d');
+        chart1 = new Chart(ctx1, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [
+                    {
+                        label: 'Suhu (°C)',
+                        data: [],
+                        borderWidth: 2,
+                        borderColor: 'orange'
+                    },
+                    {
+                        label: 'Humidity (%)',
+                        data: [],
+                        borderWidth: 2,
+                        borderColor: 'cyan'
+                    }
+                ]
+            }
+        });
+
+        // Chart 2 (Gas)
+        const ctx2 = document.getElementById('chart2').getContext('2d');
+        chart2 = new Chart(ctx2, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [
+                    {
+                        label: 'Gas (ppm)',
+                        data: [],
+                        borderWidth: 2,
+                        borderColor: 'red'
+                    }
+                ]
+            }
+        });
+    }
+
+
+    async function fetchData() {
+        try {
+            const res = await fetch('/data');
+            const data = await res.json();
+
+            if (data.length === 0) return;
+
+            const latest = data[0];
+
+            // ========================
+            // UPDATE CARD
+            // ========================
+            document.getElementById("suhu").innerText =
+                Number(latest.suhu).toFixed(2) + " °C";
+
+            document.getElementById("humidity").innerText =
+                Number(latest.humidity).toFixed(2) + " %";
+
+            document.getElementById("gas").innerText =
+                Number(latest.gas).toFixed(2) + " ppm";
+
+            const tableBody = document.getElementById("table-body");
+
+            // ========================
+            // 🔥 FIRST LOAD (ISI TABLE)
+            // ========================
+            if (isFirstLoad) {
+                tableBody.innerHTML = "";
+
+                data.slice(0,50).forEach(row => {
+                    let tr = document.createElement("tr");
+                    tr.innerHTML = `
+                        <td>${row.created_at}</td>
+                        <td>${Number(row.suhu).toFixed(2)} °C</td>
+                        <td>${Number(row.humidity).toFixed(2)} %</td>
+                        <td>${Number(row.gas).toFixed(2)} ppm</td>
+                    `;
+                    tableBody.appendChild(tr);
+                });
+
+                lastDataId = latest.id;
+                isFirstLoad = false;
+            }
+
+            // ========================
+            // UPDATE TABLE (DATA BARU)
+            // ========================
+            else if (lastDataId !== latest.id) {
+                lastDataId = latest.id;
+
+                let tr = document.createElement("tr");
+                tr.innerHTML = `
+                    <td>${latest.created_at}</td>
+                    <td>${Number(latest.suhu).toFixed(2)} °C</td>
+                    <td>${Number(latest.humidity).toFixed(2)} %</td>
+                    <td>${Number(latest.gas).toFixed(2)} ppm</td>
+                `;
+
+                tableBody.prepend(tr);
+
+                if (tableBody.rows.length > 50) {
+                    tableBody.deleteRow(50);
+                }
+            }
+
+            // ========================
+            // UPDATE CHART
+            // ========================
+           if (isChartFirstLoad) {
+
+                const labels = data.map(d => {
+                    const date = new Date(d.created_at);
+                    return date.toLocaleTimeString();
+                }).reverse(); // 🔥 penting
+
+                chart1.data.labels = labels;
+                chart1.data.datasets[0].data = data.map(d => d.suhu).reverse();
+                chart1.data.datasets[1].data = data.map(d => d.humidity).reverse();
+
+                chart2.data.labels = labels;
+                chart2.data.datasets[0].data = data.map(d => d.gas).reverse();
+
+                chart1.update();
+                chart2.update();
+
+                lastChartId = latest.id;
+                isChartFirstLoad = false;
+            }
+            else if (lastChartId !== latest.id) {
+
+                lastChartId = latest.id;
+
+                const timeLabel = new Date(latest.created_at).toLocaleTimeString(); // 🔥 samakan format
+
+                // limit 50
+                if (chart1.data.labels.length >= 50) {
+                    chart1.data.labels.shift();
+                    chart1.data.datasets.forEach(ds => ds.data.shift());
+
+                    chart2.data.labels.shift();
+                    chart2.data.datasets[0].data.shift();
+                }
+
+                // push data baru
+                chart1.data.labels.push(timeLabel);
+                chart1.data.datasets[0].data.push(latest.suhu);
+                chart1.data.datasets[1].data.push(latest.humidity);
+
+                chart2.data.labels.push(timeLabel);
+                chart2.data.datasets[0].data.push(latest.gas);
+
+                chart1.update('none');
+                chart2.update('none');
+            }
+
+        } catch (err) {
+            console.error(err);
+        }
+    }
+
+    // INIT
+    initChart();
+    fetchData();
+    setInterval(fetchData, 1000);
+</script>
+
+</body>
+</html>
