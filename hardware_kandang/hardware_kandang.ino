@@ -8,20 +8,25 @@
 #include <WiFi.h>
 #include <WiFiUdp.h>
 #include <NTPClient.h>
+#include <ArduinoJson.h>
 
 // Custom Library
 #include "Relay.h"
 
 // buat object relay
-Relay relayLampu(23);
-Relay relayKipas(18);
-Relay relayHumidifier(5);
-Relay relay4(19);
+Relay relayLampu(14);
+Relay relayKipas(27);
+Relay relayHumidifier(26);
+Relay relay4(25);
 
 //Servo
 Servo servo1;
 Servo servo2;
 Servo servo3;
+
+//test
+String inputString = "";
+int angle = 0;
 
 //LCD I2C
 LiquidCrystal_I2C lcd(0x27, 16, 2);
@@ -67,6 +72,7 @@ float gas = 0;
 
 bool debug = false;
 
+
 void setup() {
   Serial.begin(115200);
 
@@ -89,7 +95,7 @@ void setup() {
   //Servo
   servo1.attach(13);
   servo2.attach(12);
-  servo3.attach(14);
+  servo3.attach(33);
 
   // Relay
   relayLampu.begin();
@@ -114,9 +120,9 @@ void loop() {
     lastSend = now;
 
     // BACA SENSOR
-    float suhu = dht.readTemperature();
-    float humidity = dht.readHumidity();
-    float gas = gasSensor.getPPM();
+    suhu = dht.readTemperature();
+    humidity = dht.readHumidity();
+    gas = gasSensor.getPPM();
 
     if (isnan(suhu) || isnan(humidity)) {
       Serial.println("Sensor DHT gagal dibaca!");
@@ -175,10 +181,18 @@ void loop() {
   // servo1.write(0);
   // servo2.write(0);
   // servo3.write(0);
+    // relayLampu.on();
+    // relayKipas.on();
+    // relayHumidifier.on();
+    // relay4.on();
+
   }
+
+  
 
   HandleFeeding();
   controllerAuto(suhu, humidity, gas);
+  readSerialCommand();
 }
 
 
@@ -250,4 +264,53 @@ void sendSerialData(float suhu, float humidity, float gas) {
   json += "}";
 
   Serial.println(json);
+}
+
+
+void readSerialCommand() {
+  if (Serial.available()) {
+    String input = Serial.readStringUntil('\n');
+    input.trim();
+
+    Serial.println("RECEIVED: " + input);
+
+    StaticJsonDocument<200> doc;
+    DeserializationError error = deserializeJson(doc, input);
+
+    if (error) {
+      Serial.println("JSON ERROR");
+      return;
+    }
+
+    // ======================
+    // FEED
+    // ======================
+    if (doc["feed"] == true) {
+      StartFeeding();
+    }
+
+    // ======================
+    // LAMP
+    // ======================
+    if (doc.containsKey("lamp")) {
+      if (doc["lamp"]) relayLampu.on();
+      else relayLampu.off();
+    }
+
+    // ======================
+    // FAN
+    // ======================
+    if (doc.containsKey("fan")) {
+      if (doc["fan"]) relayKipas.on();
+      else relayKipas.off();
+    }
+
+    // ======================
+    // MIST
+    // ======================
+    if (doc.containsKey("mist")) {
+      if (doc["mist"]) relayHumidifier.on();
+      else relayHumidifier.off();
+    }
+  }
 }

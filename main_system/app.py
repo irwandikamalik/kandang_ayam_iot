@@ -3,8 +3,15 @@ import mysql.connector
 
 app = Flask(__name__)
 
+current_command = {
+    "feed": False,
+    "lamp": False,
+    "fan": False,
+    "mist": False
+}
+
 DB_CONFIG = {
-    "host": "localhost",
+    "host": "127.0.0.1",
     "user": "iot_user",
     "password": "12345",
     "database": "iot_db"
@@ -12,7 +19,6 @@ DB_CONFIG = {
 
 def get_db():
     return mysql.connector.connect(**DB_CONFIG)
-
 
 @app.route("/")
 def index():
@@ -42,26 +48,26 @@ def get_data():
 # DATA CONTROL
 @app.route('/feed', methods=['POST'])
 def feed():
-    # kirim ke ESP32 / simpan command
-    print("FEED TRIGGERED")
+    if not current_command["feed"]:
+        current_command["feed"] = True
     return {"status": "ok"}
 
 @app.route('/lamp', methods=['POST'])
 def lamp():
     state = request.json['state']
-    print("Lamp:", state)
+    current_command["lamp"] = state
     return {"status": "ok"}
 
 @app.route('/mist', methods=['POST'])
 def mist():
     state = request.json['state']
-    print("Mist:", state)
+    current_command["mist"] = state
     return {"status": "ok"}
 
 @app.route('/fan', methods=['POST'])
 def fan():
     state = request.json['state']
-    print("Fan:", state)
+    current_command["fan"] = state
     return {"status": "ok"}
 
 # DATA SETPOINT
@@ -110,6 +116,16 @@ def get_setpoint():
         }
     else:
         return {"suhu": 0, "hum": 0, "gas": 0}
+
+@app.route('/get-command')
+def get_command():
+
+    cmd = current_command.copy()
+
+    # reset feed biar cuma sekali trigger
+    current_command["feed"] = False
+
+    return cmd
 
 
 
