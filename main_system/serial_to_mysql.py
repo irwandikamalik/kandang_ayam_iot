@@ -28,6 +28,7 @@ DB_CONFIG = {
 
 # FLASK API (ambil command)
 FLASK_URL = "http://127.0.0.1:5000/get-command"
+SETPOINT_URL = "http://127.0.0.1:5000/get-setpoint"
 
 # INTERVAL
 INTERVAL_DB = 1      # baca sensor
@@ -112,6 +113,13 @@ def send_command(ser, cmd):
         return False
     return True
     
+def get_setpoint():
+    try:
+        res = requests.get(SETPOINT_URL, timeout=2)
+        return res.json()
+    except Exception as e:
+        print("❌ Setpoint Error:", e)
+        return None
 
 # ================= MAIN =================
 def main():
@@ -175,20 +183,29 @@ def main():
                 insert_data(db, suhu, humidity, gas)
 
             # =========================
-            # 2. KIRIM COMMAND KE ESP32
+            # 2. KIRIM COMMAND KE ESP32 + SETPOINT KE ESP32
             # =========================
             if now - last_cmd_time >= INTERVAL_CMD:
                 last_cmd_time = now
 
                 cmd = get_command()
+                sp = get_setpoint()
 
-                if cmd and cmd != last_cmd:
-                    ok = send_command(ser, cmd)
+                if cmd and sp:
+                    payload = {
+                        **cmd,
+                        "set_suhu": sp["suhu"],
+                        "set_hum": sp["hum"],
+                        "set_gas": sp["gas"]
+                    }
+                    
+                if payload != last_cmd:
+                    ok = send_command(ser, payload)
 
                     if ok:
-                        last_cmd = cmd
+                        last_cmd = payload
                     else:
-                        ser = None  
+                        ser = None
 
 
 

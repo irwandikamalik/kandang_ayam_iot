@@ -32,8 +32,8 @@ int angle = 0;
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 
 // WIFI
-const char* ssid = "akaii";
-const char* password = "akaiakai";
+const char* ssid = "KOS DOA IBU";
+const char* password = "tanyakevindulu";
 
 //NTP Timer
 WiFiUDP ntpUDP;
@@ -69,6 +69,12 @@ bool env_state = false;
 float suhu = 0;
 float humidity = 0;
 float gas = 0;
+
+// Global Variable Setpoint
+float set_suhu = 30;
+float set_hum = 60;
+float set_gas = 20;
+
 
 bool debug = false;
 
@@ -221,7 +227,9 @@ void StartFeeding() {
     is_feeding = true;
     feeding_start_time = millis();
 
-    servo1.write(90); // buka
+    servo1.write(180); // buka
+    servo2.write(180); // buka
+    servo3.write(180); // buka
     Serial.println("Feeding started");
   }
 }
@@ -229,6 +237,8 @@ void StartFeeding() {
 void HandleFeeding() {
   if (is_feeding && millis() - feeding_start_time >= feeding_duration) {
     servo1.write(0); // tutup
+    servo2.write(0); // tutup
+    servo3.write(0); // tutup
     is_feeding = false;
 
     Serial.println("Feeding finished");
@@ -238,21 +248,21 @@ void HandleFeeding() {
 void controllerAuto(float suhu, float humidity, float gas) {
 
   // KONDISI NYALA
-  if (!env_state && (gas > 20 || suhu > 32 || humidity > 60)) {
+  if (!env_state && (gas > set_gas || suhu > set_suhu || humidity > set_hum)) {
     relayKipas.on();
     relayHumidifier.on();
 
     env_state = true;
-    Serial.println("⚠️ AUTO ON (Lingkungan tidak normal)");
+    Serial.println("AUTO ON");
   }
 
   // KONDISI MATI (hysteresis biar stabil)
-  else if (env_state && (gas < 18 && suhu < 30 && humidity < 55)) {
+  else if (env_state && (gas < set_gas - 2 && suhu < set_suhu - 2 && humidity < set_hum - 5)) {
     relayKipas.off();
     relayHumidifier.off();
 
     env_state = false;
-    Serial.println("AUTO OFF (Lingkungan normal)");
+    Serial.println("AUTO OFF");
   }
 }
 
@@ -311,6 +321,20 @@ void readSerialCommand() {
     if (doc.containsKey("mist")) {
       if (doc["mist"]) relayHumidifier.on();
       else relayHumidifier.off();
+    }
+    // ======================
+    // SETPOINT
+    // ======================
+    if (doc.containsKey("set_suhu")) {
+      set_suhu = doc["set_suhu"];
+    }
+
+    if (doc.containsKey("set_hum")) {
+      set_hum = doc["set_hum"];
+    }
+
+    if (doc.containsKey("set_gas")) {
+      set_gas = doc["set_gas"];
     }
   }
 }
