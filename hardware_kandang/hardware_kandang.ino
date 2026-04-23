@@ -32,8 +32,8 @@ int angle = 0;
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 
 // WIFI
-const char* ssid = "KOS DOA IBU";
-const char* password = "tanyakevindulu";
+const char* ssid = "akaii";
+const char* password = "akaiakai";
 
 //NTP Timer
 WiFiUDP ntpUDP;
@@ -75,8 +75,9 @@ float set_suhu = 30;
 float set_hum = 60;
 float set_gas = 20;
 
+bool auto_mode = false;
 
-bool debug = false;
+bool debug = true;
 
 
 void setup() {
@@ -138,12 +139,19 @@ void loop() {
 
     sendSerialData(suhu, humidity, gas);
 
+
+
     if (debug) {
     //Debug Data
     Serial.println("====== DATA ======");
     Serial.print("Suhu: "); Serial.println(suhu);
     Serial.print("Humidity: "); Serial.println(humidity);
     Serial.print("Gas: "); Serial.println(gas);
+    
+    Serial.print("Set_Suhu: "); Serial.println(set_suhu);
+    Serial.print("Set_Humidity: "); Serial.println(set_hum);
+    Serial.print("Set_Gas: "); Serial.println(set_gas);
+    
 
     Serial.print("Jam: ");
     Serial.print(timeClient.getHours());
@@ -192,13 +200,14 @@ void loop() {
     // relayHumidifier.on();
     // relay4.on();
 
+
   }
 
   
-
+  readSerialCommand();
   HandleFeeding();
   controllerAuto(suhu, humidity, gas);
-  readSerialCommand();
+
 }
 
 
@@ -247,8 +256,10 @@ void HandleFeeding() {
 
 void controllerAuto(float suhu, float humidity, float gas) {
 
+  if (!auto_mode) return;
   // KONDISI NYALA
-  if (!env_state && (gas > set_gas || suhu > set_suhu || humidity > set_hum)) {
+  // if (!env_state && (gas > set_gas || suhu > set_suhu || humidity > set_hum)) {
+  if (gas > set_gas || suhu > set_suhu || humidity > set_hum) {
     relayKipas.on();
     relayHumidifier.on();
 
@@ -257,7 +268,8 @@ void controllerAuto(float suhu, float humidity, float gas) {
   }
 
   // KONDISI MATI (hysteresis biar stabil)
-  else if (env_state && (gas < set_gas - 2 && suhu < set_suhu - 2 && humidity < set_hum - 5)) {
+  // else if (env_state && (gas < set_gas - 2 && suhu < set_suhu - 2 && humidity < set_hum - 5)) {
+  else if (gas < set_gas - 0.5 && suhu < set_suhu - 0.5 && humidity < set_hum - 1) {
     relayKipas.off();
     relayHumidifier.off();
 
@@ -297,6 +309,14 @@ void readSerialCommand() {
     // ======================
     if (doc["feed"] == true) {
       StartFeeding();
+    }
+
+    // ======================
+    // AUTO
+    // ======================
+    if (doc.containsKey("auto")) {
+      auto_mode = doc["auto"];
+
     }
 
     // ======================

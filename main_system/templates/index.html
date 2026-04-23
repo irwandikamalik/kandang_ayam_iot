@@ -215,7 +215,7 @@
       }
 
       .button-setpoint {
-        background: #101fa8;
+        background: #2438d4;
         border: none;
         border-radius: 8px;
         color: white;
@@ -376,7 +376,7 @@
     <div class="content">
       <button class="toggle-btn" onclick="toggleSidebar()">☰</button>
 
-      <h1 class="title">Dashboard IoT</h1>
+      <h1 class="title">Smart widyasmoro farm</h1>
 
       <!-- HOME (GRAPH) -->
       <div id="home" class="page active">
@@ -428,6 +428,14 @@
             <span>Lamp</span>
             <label class="switch">
               <input type="checkbox" onchange="toggleLamp(this)" />
+              <span class="slider"></span>
+            </label>
+          </label>
+
+          <label class="switch-wrapper">
+            <span>Auto</span>
+            <label class="switch">
+              <input type="checkbox" id="autoSwitch" onchange="toggleAuto(this)" />
               <span class="slider"></span>
             </label>
           </label>
@@ -500,6 +508,14 @@
         });
       }
 
+      async function toggleAuto(el) {
+        await fetch("/auto", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ state: el.checked }),
+        });
+      }
+
       async function toggleMist(el) {
         await fetch("/mist", {
           method: "POST",
@@ -530,6 +546,15 @@
           console.error("Gagal load setpoint:", err);
         }
       }
+
+      
+      async function loadCommand() {
+        const res = await fetch("/get-command");
+        const data = await res.json();
+
+        document.getElementById("autoSwitch").checked = data.auto;
+      }
+
 
       async function setPoint() {
         const suhu = document.getElementById("setSuhu").value;
@@ -823,6 +848,7 @@
       initChart();
       fetchData();
       loadSetpoint();
+      loadCommand();
       setInterval(fetchData, 1000);
       setInterval(loadSetpoint, 5000);
     </script>

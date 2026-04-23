@@ -7,7 +7,8 @@ import os
 import requests
 
 # ================= CONFIG =================
-DEBUG = True  # True / False
+DEBUG = False  # True / False
+DEBUG_RESPONSE = True
 
 BAUDRATE = 115200
 
@@ -37,6 +38,10 @@ INTERVAL_CMD = 1     # kirim command
 
 def debug_print(msg):
     if DEBUG:
+        print(msg)
+
+def debug_print_respon(msg):
+    if DEBUG_RESPONSE:
         print(msg)
 
 # ================= DB =================
@@ -89,6 +94,8 @@ def parse_json(line):
 def get_command():
     try:
         res = requests.get(FLASK_URL, timeout=2)
+        # debug_print(f"📤 SEND: {res.strip()}")
+
         return res.json()
     except Exception as e:
         print("❌ Flask Error:", e)
@@ -160,11 +167,13 @@ def main():
             # =========================
             if ser.in_waiting:
                 line = ser.readline().decode(errors='ignore').strip()
+                response = ser.readline().decode(errors='ignore').strip()
 
                 if not line:
                     continue
 
                 debug_print(f"RAW: {line}")
+                debug_print_respon(f"Respon:  {response}")
 
                 data = parse_json(line)
 
@@ -191,14 +200,20 @@ def main():
                 cmd = get_command()
                 sp = get_setpoint()
 
-                if cmd and sp:
-                    payload = {
-                        **cmd,
-                        "set_suhu": sp["suhu"],
-                        "set_hum": sp["hum"],
-                        "set_gas": sp["gas"]
-                    }
-                    
+                if cmd is None or sp is None:
+                    continue
+
+                payload = {
+                    **cmd,
+                    "set_suhu": float(sp["suhu"]),
+                    "set_hum": float(sp["hum"]),
+                    "set_gas": float(sp["gas"]),
+                    "auto": cmd.get("auto", False) 
+
+                }
+
+                debug_print(f"📦 PAYLOAD: {payload}")
+
                 if payload != last_cmd:
                     ok = send_command(ser, payload)
 
@@ -206,7 +221,6 @@ def main():
                         last_cmd = payload
                     else:
                         ser = None
-
 
 
         except Exception as e:

@@ -6,6 +6,7 @@ app = Flask(__name__)
 current_command = {
     "feed": False,
     "lamp": False,
+    "auto" : False,
     "fan": False,
     "mist": False
 }
@@ -56,6 +57,12 @@ def feed():
 def lamp():
     state = request.json['state']
     current_command["lamp"] = state
+    return {"status": "ok"}
+
+@app.route('/auto', methods=['POST'])
+def auto():
+    state = request.json['state']
+    current_command["auto"] = state
     return {"status": "ok"}
 
 @app.route('/mist', methods=['POST'])
