@@ -880,7 +880,7 @@
             const timeLabel = new Date(latest.created_at).toLocaleTimeString(); // 🔥 samakan format
 
             // limit 50
-            if (chart1.data.labels.length >= 20) {
+            if (chart1.data.labels.length >= 30) {
               chart1.data.labels.shift();
               chart1.data.datasets[0].data.shift();
 
