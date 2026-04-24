@@ -8,7 +8,7 @@ import requests
 
 # ================= CONFIG =================
 DEBUG = False  # True / False
-DEBUG_RESPONSE = True
+DEBUG_RESPONSE = False
 
 BAUDRATE = 115200
 

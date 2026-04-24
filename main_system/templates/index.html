@@ -376,7 +376,7 @@
     <div class="content">
       <button class="toggle-btn" onclick="toggleSidebar()">☰</button>
 
-      <h1 class="title">Smart widyasmoro farm</h1>
+      <h1 class="title">Smart Poultry Farming System</h1>
 
       <!-- HOME (GRAPH) -->
       <div id="home" class="page active">
@@ -460,14 +460,20 @@
 
         <div class="chart-container">
           <div class="chart-box">
-            <h2>🌡️ Suhu & Humidity</h2>
+            <h2>🌡️ Suhu </h2>
             <canvas id="chart1"></canvas>
           </div>
-
+          
           <div class="chart-box">
-            <h2>🧪 Gas</h2>
+            <h2>💧 Humidity</h2>
             <canvas id="chart2"></canvas>
           </div>
+          
+          <div class="chart-box">
+            <h2>🧪 Gas</h2>
+            <canvas id="chart3"></canvas>
+          </div>
+
         </div>
       </div>
 
@@ -490,7 +496,7 @@
     </div>
 
     <script>
-      let chart1, chart2;
+      let chart1, chart2, chart3;
       let lastChartId = null;
       let isChartFirstLoad = true;
       let lastDataId = null;
@@ -626,6 +632,53 @@
                 borderWidth: 2,
                 borderColor: "orange",
               },
+
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+
+            scales: {
+              x: {
+                ticks: {
+                  color: "white",
+                  maxTicksLimit: 6,
+                  font: {
+                    size: window.innerWidth < 600 ? 8 : 12, // 🔥 fleksibel
+                  },
+                },
+              },
+              y: {
+                ticks: {
+                  color: "white",
+                  font: {
+                    size: window.innerWidth < 600 ? 8 : 12,
+                  },
+                },
+              },
+            },
+
+            plugins: {
+              legend: {
+                labels: {
+                  color: "white",
+                  font: {
+                    size: window.innerWidth < 600 ? 10 : 14, // 🔥 fleksibel
+                  },
+                },
+              },
+            },
+          },
+        });
+
+        // Chart 2 (Humidity)
+        const ctx2 = document.getElementById("chart2").getContext("2d");
+        chart2 = new Chart(ctx2, {
+          type: "line",
+          data: {
+            labels: [],
+            datasets: [
               {
                 label: "Humidity (%)",
                 data: [],
@@ -670,10 +723,12 @@
             },
           },
         });
+      
 
-        // Chart 2 (Gas)
-        const ctx2 = document.getElementById("chart2").getContext("2d");
-        chart2 = new Chart(ctx2, {
+
+        // Chart 3 (Gas)
+        const ctx3 = document.getElementById("chart3").getContext("2d");
+        chart3 = new Chart(ctx3, {
           type: "line",
           data: {
             labels: [],
@@ -800,17 +855,22 @@
               })
               .reverse();
 
+            // SUHU
             chart1.data.labels = labels;
-            chart1.data.datasets[0].data = data.map((d) => d.suhu).reverse();
-            chart1.data.datasets[1].data = data
-              .map((d) => d.humidity)
-              .reverse();
+            chart1.data.datasets[0].data = data.map(d => d.suhu).reverse();
 
+            // HUMIDITY
             chart2.data.labels = labels;
-            chart2.data.datasets[0].data = data.map((d) => d.gas).reverse();
+            chart2.data.datasets[0].data = data.map(d => d.humidity).reverse();
+
+            // GAS
+            chart3.data.labels = labels;
+            chart3.data.datasets[0].data = data.map(d => d.gas).reverse();
 
             chart1.update();
             chart2.update();
+            chart3.update();
+
 
             lastChartId = latest.id;
             isChartFirstLoad = false;
@@ -822,22 +882,28 @@
             // limit 50
             if (chart1.data.labels.length >= 20) {
               chart1.data.labels.shift();
-              chart1.data.datasets.forEach((ds) => ds.data.shift());
+              chart1.data.datasets[0].data.shift();
 
               chart2.data.labels.shift();
               chart2.data.datasets[0].data.shift();
+
+              chart3.data.labels.shift();
+              chart3.data.datasets[0].data.shift();
             }
 
             // push data baru
             chart1.data.labels.push(timeLabel);
             chart1.data.datasets[0].data.push(latest.suhu);
-            chart1.data.datasets[1].data.push(latest.humidity);
 
             chart2.data.labels.push(timeLabel);
-            chart2.data.datasets[0].data.push(latest.gas);
+            chart2.data.datasets[0].data.push(latest.humidity);
+
+            chart3.data.labels.push(timeLabel);
+            chart3.data.datasets[0].data.push(latest.gas);
 
             chart1.update("none");
             chart2.update("none");
+            chart3.update("none");
           }
         } catch (err) {
           console.error(err);
