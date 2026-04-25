@@ -517,10 +517,6 @@
           <img id="videoStream" src="" alt="Video Stream" />
         </div>
 
-        <div style="margin-top:20px;">
-          <button onclick="startStream()">▶️ Start</button>
-          <button onclick="stopStream()">⏹ Stop</button>
-        </div>
       </div>
 
       <!-- DATA TABLE -->
@@ -662,11 +658,12 @@
           .querySelectorAll(".page")
           .forEach((p) => p.classList.remove("active"));
         document.getElementById(pageId).classList.add("active");
-      
-        if (pageId !== "stream") {
-          stopStream();
+   
+        if (pageId === "stream") {
+            startStream();
+        } else {
+            stopStream(); 
         }
-
       }
 
       function initChart() {
