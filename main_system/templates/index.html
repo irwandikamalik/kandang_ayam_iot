@@ -2,6 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Dashboard IoT</title>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -23,7 +24,6 @@
       .title {
         width: 100%;
         padding: 20px;
-        margin: 0;
         background: #1e293b;
         text-shadow: #000000 2px 2px 4px;
         flex-wrap: wrap;
@@ -66,9 +66,9 @@
         background: #334155;
       }
       .toggle-btn {
-        position: fixed;
+        position: absolute;
         top: 35px;
-        left: 25px;
+        right: -60px;
         z-index: 1000;
         background: #1e293b;
         color: white;
@@ -229,27 +229,28 @@
       .card-container {
         display: flex;
         justify-content: center;
-        margin: auto;
-        flex-wrap: wrap;
         gap: 20px;
+        flex-wrap: wrap;
         margin-bottom: 20px;
       }
 
       .card {
-        display: inline-block;
         background: #1e293b;
-        padding: 20px;
-        margin: 10px;
-        border-radius: 15px;
-        width: 200px;
-        max-width: 90%;
+        padding: 15px;
+        border-radius: 10px;
+        width: 170px;
+        height: 170px;
         text-align: center;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
       }
       .card h3 {
-        margin: 0 0 10px 0;
-        font-size: 24px;
+        /* margin: 0 0 10px 0; */
+        font-size: 20px;
         color: #f8f8f8;
+      }
+
+      .card p {
+        font-size: 20%;
+        color: #22c55e;
       }
 
       .card p {
@@ -259,8 +260,9 @@
 
       .chart-container {
         display: flex;
+        flex-direction: column;
         gap: 30px;
-        width: 100%;
+        width: 80%;
         height: auto;
         justify-content: center;
         margin: auto;
@@ -272,21 +274,17 @@
         padding: 15px;
         border-radius: 10px;
         box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
-        height: auto;
+        /* height: auto; */
       }
 
-      /* canvas full */
-      .chart-box canvas {
-        width: 100% !important;
-        height: 500px !important;
-      }
 
       /* CHART */
       #chart1,
-      #chart2 {
+      #chart2,
+      #chart3 {
         width: 100% !important;
-        height: 500px !important;
-        max-width: 100%;
+        height: 300px !important;
+        max-width: 150%;
       }
 
       /* PAGE */
@@ -326,11 +324,11 @@
 
       @media (max-width: 1000px) {
         .toggle-btn {
-          position: fixed;
+          position: absolute;
           top: 25px;
-          left: 15px;
+          /* right: -200px; */
           z-index: 1000;
-          background: #1e293b;
+          /* background: #1e293b; */
           color: white;
           border: none;
           padding: 10px 15px;
@@ -360,6 +358,25 @@
         .chart-box canvas {
           height: 220px !important;
         }
+      
+        .chart-container {
+          display: flex;
+          flex-direction: column;
+          gap: 30px;
+          width: 95%;
+          height: auto;
+          justify-content: center;
+          margin: auto;
+        }
+          
+        /* CHART */
+        #chart1,
+        #chart2,
+        #chart3 {
+          width: 100% !important;
+          height: 150px !important;
+          max-width: 150%;
+        }
       }
     </style>
   </head>
@@ -367,6 +384,7 @@
   <body>
     <!-- SIDEBAR -->
     <div class="sidebar hide">
+      <button class="toggle-btn" onclick="toggleSidebar()">☰</button>
       <h2>Menu</h2>
       <a href="#" onclick="showPage('home')">🏠 Home</a>
       <a href="#" onclick="showPage('data')">📄 Data</a>
@@ -374,8 +392,6 @@
 
     <!-- CONTENT -->
     <div class="content">
-      <button class="toggle-btn" onclick="toggleSidebar()">☰</button>
-
       <h1 class="title">Smart Poultry Farming System</h1>
 
       <!-- HOME (GRAPH) -->
@@ -637,7 +653,7 @@
           },
           options: {
             responsive: true,
-            maintainAspectRatio: false,
+            maintainAspectRatio: true,
 
             scales: {
               x: {
@@ -808,7 +824,7 @@
           if (isFirstLoad) {
             tableBody.innerHTML = "";
 
-            data.slice(0, 20).forEach((row) => {
+            data.slice(0, 60).forEach((row) => {
               let tr = document.createElement("tr");
               tr.innerHTML = `
                         <td>${row.created_at}</td>
@@ -880,7 +896,7 @@
             const timeLabel = new Date(latest.created_at).toLocaleTimeString(); // 🔥 samakan format
 
             // limit 50
-            if (chart1.data.labels.length >= 30) {
+            if (chart1.data.labels.length >= 60) {
               chart1.data.labels.shift();
               chart1.data.datasets[0].data.shift();
 

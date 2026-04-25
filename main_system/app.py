@@ -35,7 +35,7 @@ def get_data():
         SELECT id, suhu, humidity, gas, created_at
         FROM sensor_data
         ORDER BY id DESC
-        LIMIT 20
+        LIMIT 60
     """
 
     cursor.execute(query)
