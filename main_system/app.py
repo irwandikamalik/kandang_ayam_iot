@@ -1,7 +1,12 @@
-from flask import Flask, render_template, jsonify, request
+from flask import Flask, render_template, jsonify, request, Response
 import mysql.connector
+import atexit
+
+from cam import Camera, gen_frames
 
 app = Flask(__name__)
+
+camera = None
 
 current_command = {
     "feed": False,
@@ -20,6 +25,13 @@ DB_CONFIG = {
 
 def get_db():
     return mysql.connector.connect(**DB_CONFIG)
+
+def get_camera():
+    global camera
+    if camera is None:
+        camera = Camera()
+    return camera
+
 
 @app.route("/")
 def index():
@@ -134,7 +146,30 @@ def get_command():
 
     return cmd
 
+@app.route('/stream')
+def stream():
+    global camera
+    if camera is None:
+        camera = Camera()
 
+    return Response(gen_frames(camera),
+                    mimetype='multipart/x-mixed-replace; boundary=frame')
+
+@app.route('/stop-stream')
+def stop_stream():
+    global camera
+    if camera:
+        camera.release()
+        camera = None
+    return {"status": "stopped"}
+
+
+@atexit.register
+def shutdown():
+    global camera
+    print("🔻 Releasing camera...")
+    if camera:
+        camera.release()
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)

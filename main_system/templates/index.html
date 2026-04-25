@@ -37,7 +37,7 @@
         top: 0;
         max-width: 155px;
         height: 100%;
-        background: #2b2f36;
+        background: #0f172a;
         padding: 20px;
         transition: 0.3s;
         z-index: 1000;
@@ -322,6 +322,21 @@
         border-collapse: collapse;
       }
 
+      /* //STREAM AI */
+      .stream-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin-top: 20px;
+      }
+
+      .stream-container img {
+        width: 80%;
+        max-width: 600px;
+        border-radius: 10px;
+        border: 2px solid #334155;
+      }
+
       @media (max-width: 1000px) {
         .toggle-btn {
           position: absolute;
@@ -387,6 +402,7 @@
       <button class="toggle-btn" onclick="toggleSidebar()">☰</button>
       <h2>Menu</h2>
       <a href="#" onclick="showPage('home')">🏠 Home</a>
+      <a href="#" onclick="showPage('stream')">📹 AI</a>
       <a href="#" onclick="showPage('data')">📄 Data</a>
     </div>
 
@@ -490,6 +506,20 @@
             <canvas id="chart3"></canvas>
           </div>
 
+        </div>
+      </div>
+
+      <!-- STREAM PAGE -->
+      <div id="stream" class="page">
+        <h1>📹 AI Video Stream</h1>
+
+        <div class="stream-container">
+          <img id="videoStream" src="" alt="Video Stream" />
+        </div>
+
+        <div style="margin-top:20px;">
+          <button onclick="startStream()">▶️ Start</button>
+          <button onclick="stopStream()">⏹ Stop</button>
         </div>
       </div>
 
@@ -632,6 +662,11 @@
           .querySelectorAll(".page")
           .forEach((p) => p.classList.remove("active"));
         document.getElementById(pageId).classList.add("active");
+      
+        if (pageId !== "stream") {
+          stopStream();
+        }
+
       }
 
       function initChart() {
@@ -793,6 +828,18 @@
             },
           },
         });
+      }
+
+      function startStream() {
+          const img = document.getElementById("videoStream");
+          img.src = "/stream";
+      }
+
+      function stopStream() {
+          fetch('/stop-stream');
+
+          const img = document.getElementById("videoStream");
+          img.src = ""; 
       }
 
       async function fetchData() {
