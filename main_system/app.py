@@ -108,11 +108,8 @@ def set_setpoint():
     """, (suhu, hum, gas))
 
     db.commit()
-
     cursor.close()
     db.close()
-
-    print("SETPOINT UPDATED:", suhu, hum, gas)
 
     return {"status": "ok"}
 
@@ -129,10 +126,11 @@ def get_setpoint():
 
     if result:
         return {
-            "suhu": result['suhu'],
-            "hum": result['hum'],
-            "gas": result['gas']
-        }
+        "suhu": result['suhu'],
+        "hum": result['hum'],
+        "gas": result['gas']
+        }   
+    
     else:
         return {"suhu": 0, "hum": 0, "gas": 0}
 

@@ -32,8 +32,8 @@ int angle = 0;
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 
 // WIFI
-const char* ssid = "akaii";
-const char* password = "akaiakai";
+const char* ssid = "Kusuma";
+const char* password = "Fitrohanugrah1987";
 
 //NTP Timer
 WiFiUDP ntpUDP;
@@ -44,7 +44,7 @@ const int timerMenit = 25;
 
 // DHT22
 #define DHTPIN 4
-#define DHTTYPE DHT22
+#define DHTTYPE DHT11
 DHT dht(DHTPIN, DHTTYPE);
 
 // MQ135
@@ -77,7 +77,9 @@ float set_gas = 20;
 
 bool auto_mode = false;
 
-bool debug = true;
+bool debug = false;
+
+bool setpoint_ready = false;
 
 
 void setup() {
@@ -347,14 +349,17 @@ void readSerialCommand() {
     // ======================
     if (doc.containsKey("set_suhu")) {
       set_suhu = doc["set_suhu"];
+      setpoint_ready = true;
     }
 
     if (doc.containsKey("set_hum")) {
       set_hum = doc["set_hum"];
+      setpoint_ready = true;
     }
 
     if (doc.containsKey("set_gas")) {
       set_gas = doc["set_gas"];
+      setpoint_ready = true;
     }
   }
 }

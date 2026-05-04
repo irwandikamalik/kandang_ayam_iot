@@ -14,7 +14,7 @@ BAUDRATE = 115200
 
 # AUTO DETECT OS
 if sys.platform.startswith("win"):
-    DEFAULT_PORT = "COM3"
+    DEFAULT_PORT = "COM4"
 else:
     DEFAULT_PORT = "/dev/ttyUSB0"
 
@@ -101,7 +101,6 @@ def get_command():
         print("❌ Flask Error:", e)
         return None
 
-
 def send_command(ser, cmd):
     try:
         message = json.dumps(cmd) + "\n"
@@ -119,7 +118,7 @@ def send_command(ser, cmd):
 
         return False
     return True
-    
+   
 def get_setpoint():
     try:
         res = requests.get(SETPOINT_URL, timeout=2)
@@ -208,7 +207,7 @@ def main():
                     "set_suhu": float(sp["suhu"]),
                     "set_hum": float(sp["hum"]),
                     "set_gas": float(sp["gas"]),
-                    "auto": cmd.get("auto", False) 
+                    "auto": cmd.get("auto", False)
 
                 }
 
@@ -222,10 +221,9 @@ def main():
                     else:
                         ser = None
 
-
         except Exception as e:
             print("Runtime Error:", e)
-            
+           
             try:
                 if ser:
                     ser.close()

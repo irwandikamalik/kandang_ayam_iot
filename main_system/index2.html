@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smart Poultry Dashboard</title>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: 'Segoe UI', Arial;
+  background: #0f172a;
+  color: #e2e8f0;
+}
+
+/* SIDEBAR */
+.sidebar {
+  width: 200px;
+  background: #020617;
+  height: 100vh;
+  padding: 20px;
+  position: fixed;
+  left: 0;
+  top: 0;
+  transition: transform 0.3s ease;
+  z-index: 1000;
+}
+
+.sidebar.hide {
+  transform: translateX(-100%);
+}
+
+.sidebar h2 {
+  margin-bottom: 25px;
+  font-size: 18px;
+}
+
+.sidebar a {
+  display: block;
+  padding: 10px;
+  margin-bottom: 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  background: #111827;
+}
+
+.sidebar a:hover {
+  background: #1e293b;
+}
+
+/* CONTENT */
+.content {
+  margin-left: 200px;
+  padding: 20px;
+  transition: margin-left 0.3s ease;
+}
+
+.content.full {
+  margin-left: 0;
+}
+
+/* TOGGLE BUTTON */
+.menu-btn {
+  background: #22c55e;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 6px;
+  color: white;
+  cursor: pointer;
+  margin-bottom: 15px;
+}
+
+/* CARD */
+.card-container {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.card {
+  flex: 1;
+  min-width: 120px;
+  background: #1e293b;
+  padding: 10px;
+  border-radius: 10px;
+  text-align: center;
+}
+
+.card p {
+  font-size: 16px;
+  color: #22c55e;
+}
+
+/* CONTROL */
+.control-container {
+  margin: 15px 0;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+button {
+  background: #22c55e;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 6px;
+  color: white;
+  cursor: pointer;
+}
+
+/* SWITCH */
+.switch-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: #111827;
+  padding: 5px 10px;
+  border-radius: 8px;
+}
+
+.switch {
+  position: relative;
+  width: 40px;
+  height: 20px;
+}
+
+.switch input { display: none; }
+
+.slider {
+  position: absolute;
+  background: #555;
+  width: 100%;
+  height: 100%;
+  border-radius: 20px;
+}
+
+.slider::before {
+  content: "";
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  background: white;
+  top: 2px;
+  left: 2px;
+  border-radius: 50%;
+}
+
+input:checked + .slider {
+  background: #22c55e;
+}
+
+input:checked + .slider::before {
+  transform: translateX(20px);
+}
+
+/* SETPOINT */
+.setpoint-container input {
+  padding: 6px;
+  margin: 5px;
+  border-radius: 6px;
+  border: none;
+}
+
+/* CHART (DIPERKECIL) */
+.chart-container {
+  margin-top: 15px;
+}
+
+canvas {
+  background: #1e293b;
+  border-radius: 10px;
+  margin-bottom: 10px;
+  height: 180px !important; /* DIPERKECIL */
+}
+
+/* PAGE */
+.page { display: none; }
+.active { display: block; }
+
+/* FOOTER */
+footer {
+  text-align: center;
+  padding: 10px;
+  font-size: 12px;
+  color: #94a3b8;
+}
+</style>
+</head>
+
+<body>
+
+<div class="sidebar" id="sidebar">
+  <h2>🐔 Smart Farm</h2>
+  <a onclick="showPage('home')">Dashboard</a>
+  <a onclick="showPage('stream')">AI</a>
+  <a onclick="showPage('data')">Data</a>
+</div>
+
+<div class="content" id="content">
+
+<button class="menu-btn" onclick="toggleSidebar()">☰ Menu</button>
+
+<h1>Smart Poultry Farming System</h1>
+
+<div id="home" class="page active">
+
+<div class="card-container">
+  <div class="card"><h3>Suhu</h3><p id="suhu">-</p></div>
+  <div class="card"><h3>Humidity</h3><p id="humidity">-</p></div>
+  <div class="card"><h3>Gas</h3><p id="gas">-</p></div>
+</div>
+
+<div class="control-container">
+  <button onclick="feedNow()">Feed</button>
+
+  <div class="switch-wrapper">Mist
+    <label class="switch">
+      <input type="checkbox" onchange="toggleMist(this)">
+      <span class="slider"></span>
+    </label>
+  </div>
+
+  <div class="switch-wrapper">Fan
+    <label class="switch">
+      <input type="checkbox" onchange="toggleFan(this)">
+      <span class="slider"></span>
+    </label>
+  </div>
+
+  <div class="switch-wrapper">Lamp
+    <label class="switch">
+      <input type="checkbox" onchange="toggleLamp(this)">
+      <span class="slider"></span>
+    </label>
+  </div>
+
+  <div class="switch-wrapper">Auto
+    <label class="switch">
+      <input type="checkbox" onchange="toggleAuto(this)">
+      <span class="slider"></span>
+    </label>
+  </div>
+</div>
+
+<div class="setpoint-container">
+  <input id="setSuhu" placeholder="Suhu">
+  <input id="setHum" placeholder="Humidity">
+  <input id="setGas" placeholder="Gas">
+  <button onclick="setPoint()">Set</button>
+</div>
+
+<div class="chart-container">
+  <canvas id="chart1"></canvas>
+  <canvas id="chart2"></canvas>
+  <canvas id="chart3"></canvas>
+</div>
+
+</div>
+
+<div id="stream" class="page">
+  <h2>AI Stream</h2>
+  <img width="100%">
+</div>
+
+<div id="data" class="page">
+  <h2>Data</h2>
+  <table>
+    <thead>
+      <tr><th>Time</th><th>Suhu</th><th>Humidity</th><th>Gas</th></tr>
+    </thead>
+    <tbody id="table-body"></tbody>
+  </table>
+</div>
+
+</div>
+
+<footer>
+  @Designed by student Electrical Engineering Universitas Muhammadiyah 2026
+</footer>
+
+<script>
+function toggleSidebar(){
+  document.getElementById("sidebar").classList.toggle("hide");
+  document.getElementById("content").classList.toggle("full");
+}
+
+let chart1, chart2, chart3;
+
+function initChart(){
+chart1 = new Chart(document.getElementById("chart1"),{
+type:"line",data:{labels:[],datasets:[{label:"Suhu",data:[],borderColor:"orange"}]}
+});
+chart2 = new Chart(document.getElementById("chart2"),{
+type:"line",data:{labels:[],datasets:[{label:"Humidity",data:[],borderColor:"cyan"}]}
+});
+chart3 = new Chart(document.getElementById("chart3"),{
+type:"line",data:{labels:[],datasets:[{label:"Gas",data:[],borderColor:"red"}]}
+});
+}
+
+async function fetchData(){
+let res = await fetch("/data");
+let data = await res.json();
+if(!data.length) return;
+let d = data[0];
+
+document.getElementById("suhu").innerText = d.suhu;
+document.getElementById("humidity").innerText = d.humidity;
+document.getElementById("gas").innerText = d.gas;
+}
+
+function feedNow(){ fetch("/feed",{method:"POST"}); }
+function toggleMist(e){ fetch("/mist",{method:"POST",body:JSON.stringify({state:e.checked})}); }
+function toggleFan(e){ fetch("/fan",{method:"POST",body:JSON.stringify({state:e.checked})}); }
+function toggleLamp(e){ fetch("/lamp",{method:"POST",body:JSON.stringify({state:e.checked})}); }
+function toggleAuto(e){ fetch("/auto",{method:"POST",body:JSON.stringify({state:e.checked})}); }
+
+function setPoint(){ fetch("/setpoint",{method:"POST"}); }
+
+function showPage(id){
+document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));
+document.getElementById(id).classList.add("active");
+}
+
+initChart();
+setInterval(fetchData,1000);
+</script>
+
+</body>
+</html>
