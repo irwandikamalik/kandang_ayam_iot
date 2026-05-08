@@ -32,8 +32,8 @@ int angle = 0;
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 
 // WIFI
-const char* ssid = "Kusuma";
-const char* password = "Fitrohanugrah1987";
+const char* ssid = "plerr.co";
+const char* password = "pleerr22";
 
 //NTP Timer
 WiFiUDP ntpUDP;
@@ -44,7 +44,7 @@ const int timerMenit = 25;
 
 // DHT22
 #define DHTPIN 4
-#define DHTTYPE DHT11
+#define DHTTYPE DHT22
 DHT dht(DHTPIN, DHTTYPE);
 
 // MQ135
@@ -129,9 +129,14 @@ void loop() {
     lastSend = now;
 
     // BACA SENSOR
-    suhu = dht.readTemperature();
-    humidity = dht.readHumidity();
-    gas = gasSensor.getPPM();
+    // suhu = dht.readTemperature();
+    // humidity = dht.readHumidity();
+    // gas = gasSensor.getPPM();
+
+    //debug
+    suhu = 30;
+    humidity = 80;
+    gas = 1;
 
     if (isnan(suhu) || isnan(humidity)) {
       Serial.println("Sensor DHT gagal dibaca!");
@@ -284,7 +289,13 @@ void sendSerialData(float suhu, float humidity, float gas) {
   String json = "{";
   json += "\"suhu\":" + String(suhu, 2) + ",";
   json += "\"humidity\":" + String(humidity, 2) + ",";
-  json += "\"gas\":" + String(gas, 2);
+  json += "\"gas\":" + String(gas, 2) + ",";
+
+json += "\"fan\":" + String(relayKipas.getState() ? "true" : "false") + ",";
+json += "\"mist\":" + String(relayHumidifier.getState() ? "true" : "false") + ",";
+json += "\"lamp\":" + String(relayLampu.getState() ? "true" : "false") + ",";
+json += "\"auto\":" + String(auto_mode ? "true" : "false");
+
   json += "}";
 
   Serial.println(json);
@@ -332,7 +343,7 @@ void readSerialCommand() {
     // ======================
     // FAN
     // ======================
-    if (doc.containsKey("fan")) {
+    if (!auto_mode && doc.containsKey("fan")) {
       if (doc["fan"]) relayKipas.on();
       else relayKipas.off();
     }
@@ -340,10 +351,11 @@ void readSerialCommand() {
     // ======================
     // MIST
     // ======================
-    if (doc.containsKey("mist")) {
+    if (!auto_mode && doc.containsKey("mist")) {
       if (doc["mist"]) relayHumidifier.on();
       else relayHumidifier.off();
     }
+
     // ======================
     // SETPOINT
     // ======================

@@ -1,11 +1,17 @@
-from flask import Flask, render_template, jsonify, request, Response
+from flask import Flask, render_template, jsonify, request, Response, send_from_directory
+from flask_cors import CORS
+from cam import Camera, gen_frames
+import os
 import mysql.connector
 import atexit
+import time
 
-from cam import Camera, gen_frames
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DIST_DIR = os.path.join(BASE_DIR, 'iot-dashboard', 'dist')
 
 app = Flask(__name__)
-
+CORS(app)
 camera = None
 
 current_command = {
@@ -15,6 +21,8 @@ current_command = {
     "fan": False,
     "mist": False
 }
+
+latest_status = {}
 
 DB_CONFIG = {
     "host": "127.0.0.1",
@@ -32,10 +40,35 @@ def get_camera():
         camera = Camera()
     return camera
 
+@app.route('/')
+def serve_vue():
+    return send_from_directory(DIST_DIR, 'index.html')
+    
+@app.route('/<path:path>')
+def static_proxy(path):
+    return send_from_directory(DIST_DIR, path)
 
-@app.route("/")
-def index():
-    return render_template("index.html")
+@app.route('/all')
+def get_all():
+    db = get_db()
+    cursor = db.cursor(dictionary=True)
+
+    cursor.execute("""
+        SELECT id, suhu, humidity, gas, created_at
+        FROM sensor_data
+        ORDER BY id DESC
+        LIMIT 20
+    """)
+
+    sensor = cursor.fetchall()
+
+    cursor.close()
+    db.close()
+
+    return jsonify({
+        "sensor": sensor,
+        "status": latest_status if latest_status else {}
+    })
 
 # DATA SENSOR
 @app.route("/data")
@@ -47,7 +80,7 @@ def get_data():
         SELECT id, suhu, humidity, gas, created_at
         FROM sensor_data
         ORDER BY id DESC
-        LIMIT 60
+        LIMIT 20
     """
 
     cursor.execute(query)
@@ -63,6 +96,11 @@ def get_data():
 def feed():
     if not current_command["feed"]:
         current_command["feed"] = True
+    return {"status": "ok"}
+
+@app.route('/feed_reset', methods=['POST'])
+def feed_reset():
+    current_command["feed"] = False
     return {"status": "ok"}
 
 @app.route('/lamp', methods=['POST'])
@@ -88,6 +126,33 @@ def fan():
     state = request.json['state']
     current_command["fan"] = state
     return {"status": "ok"}
+
+@app.route('/update-status', methods=['POST'])
+def update_status():
+    global latest_status
+    data = request.json
+
+    if not data:
+        return {"status": "error"}
+
+    latest_status.update(data)
+
+    latest_status["last_update"] = time.time()
+
+    return {"status": "ok"}
+
+@app.route('/get-status')
+def get_status():
+    return latest_status if latest_status else {
+        "fan": False,
+        "mist": False,
+        "lamp": False,
+        "auto": False,
+        "suhu": 0,
+        "humidity": 0,
+        "gas": 0
+    }
+
 
 # DATA SETPOINT
 @app.route('/setpoint', methods=['POST'])
@@ -134,12 +199,11 @@ def get_setpoint():
     else:
         return {"suhu": 0, "hum": 0, "gas": 0}
 
+
 @app.route('/get-command')
 def get_command():
-
     cmd = current_command.copy()
 
-    # reset feed biar cuma sekali trigger
     current_command["feed"] = False
 
     return cmd

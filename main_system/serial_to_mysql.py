@@ -14,7 +14,7 @@ BAUDRATE = 115200
 
 # AUTO DETECT OS
 if sys.platform.startswith("win"):
-    DEFAULT_PORT = "COM4"
+    DEFAULT_PORT = "COM5"
 else:
     DEFAULT_PORT = "/dev/ttyUSB0"
 
@@ -33,7 +33,7 @@ SETPOINT_URL = "http://127.0.0.1:5000/get-setpoint"
 
 # INTERVAL
 INTERVAL_DB = 1      # baca sensor
-INTERVAL_CMD = 1     # kirim command
+INTERVAL_CMD = 0.1     # kirim command
 # ==========================================
 
 def debug_print(msg):
@@ -126,6 +126,12 @@ def get_setpoint():
     except Exception as e:
         print("❌ Setpoint Error:", e)
         return None
+    
+def send_status_to_flask(data):
+    try:
+        requests.post("http://127.0.0.1:5000/update-status", json=data, timeout=1)
+    except Exception as e:
+        print("Status send error:", e)
 
 # ================= MAIN =================
 def main():
@@ -166,23 +172,41 @@ def main():
             # =========================
             if ser.in_waiting:
                 line = ser.readline().decode(errors='ignore').strip()
-                response = ser.readline().decode(errors='ignore').strip()
+                # response = ser.readline().decode(errors='ignore').strip()
 
                 if not line:
                     continue
 
                 debug_print(f"RAW: {line}")
-                debug_print_respon(f"Respon:  {response}")
+                # debug_print_respon(f"Respon:  {response}")
 
                 data = parse_json(line)
 
                 if not data:
                     debug_print("Skip non-JSON")
                     continue
+                
+                if data:
+                    send_status_to_flask(data)
 
                 suhu = data.get("suhu")
                 humidity = data.get("humidity")
                 gas = data.get("gas")
+
+                fan = data.get("fan")
+                mist = data.get("mist")
+                lamp = data.get("lamp")
+                auto = data.get("auto")
+
+                try:
+                    requests.post("http://127.0.0.1:5000/update-status", json={
+                        "fan": fan,
+                        "mist": mist,
+                        "lamp": lamp,
+                        "auto": auto,
+                        })
+                except Exception as e:
+                    print("Gagal kirim status:", e)
 
                 if suhu is None or humidity is None or gas is None:
                     debug_print("Data tidak lengkap")
@@ -213,13 +237,19 @@ def main():
 
                 debug_print(f"📦 PAYLOAD: {payload}")
 
-                if payload != last_cmd:
-                    ok = send_command(ser, payload)
+                ok = send_command(ser, payload)
 
-                    if ok:
-                        last_cmd = payload
-                    else:
-                        ser = None
+                if ok:
+                    last_cmd = payload
+                    if payload.get("feed"):
+                        try:
+                            requests.post("http://127.0.0.1:5000/feed_reset")
+                        except:
+                            pass
+
+                else:
+                    ser = None
+
 
         except Exception as e:
             print("Runtime Error:", e)
