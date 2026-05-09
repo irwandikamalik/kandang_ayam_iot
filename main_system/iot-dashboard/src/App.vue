@@ -4,8 +4,19 @@
     <!-- HEADER -->
     <div class="header">
       <h1>🔥 IoT Dashboard</h1>
+      
       <div :class="isOnline ? 'status online' : 'status offline'">
         {{ isOnline ? '🟢 ONLINE' : '🔴 OFFLINE' }}
+      </div>
+
+      <div class="time-card">
+        <h3>Server Time</h3>
+        <p>{{ serverClock }}</p>
+      </div>
+
+      <div class="time-card">
+        <h3>Uptime ESP32</h3>
+        <p>{{ uptime }}</p>
       </div>
     </div>
 
@@ -47,6 +58,14 @@
 
         <div class="control-item">
           <span class="control-label">
+            <Droplet class="mini-icon drink-icon"/>
+            drink
+          </span>
+          <input type="checkbox" v-model="drink" @change="toggleDrink">
+        </div>
+
+        <div class="control-item">
+          <span class="control-label">
             <LightBulbIcon class="mini-icon lamp-icon"/>
             Lamp
           </span>
@@ -72,6 +91,49 @@
         <button @click="feedNow" class="feed-btn">
           🍽️ Feed
         </button>
+
+        <div class="panel">
+          <h2>📌 Setpoint Aktif</h2>
+
+          <div class="control-item">
+            <span>Suhu</span>
+            <b>{{ current_sp.suhu }}</b>
+          </div>
+
+          <div class="control-item">
+            <span>Humidity</span>
+            <b>{{ current_sp.hum }}</b>
+          </div>
+
+          <div class="control-item">
+            <span>Gas</span>
+            <b>{{ current_sp.gas }}</b>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h2>✏️ Setpoint Baru</h2>
+
+          <div class="control-item">
+            <span>Suhu</span>
+            <input type="number" v-model="sp_suhu">
+          </div>
+
+          <div class="control-item">
+            <span>Humidity</span>
+            <input type="number" v-model="sp_hum">
+          </div>
+
+          <div class="control-item">
+            <span>Gas</span>
+            <input type="number" v-model="sp_gas">
+          </div>
+
+          <button @click="saveSetpoint" class="feed-btn">
+            💾 Save
+          </button>
+        </div>
+
       </div>
 
       <!-- CHART -->
@@ -120,6 +182,10 @@ body {
   color: #22c55e;
 }
 
+.time-card{
+  size: 50%;
+}
+
 .offline {
   background: rgba(239,68,68,0.2);
   color: #ef4444;
@@ -154,7 +220,8 @@ body {
 .gas-icon { color: #ef4444; }
 
 /* Control Icon */
-.fan-icon { color: #38bdf8; }
+.fan-icon  { color: #38bdf8; }
+.drink-icon { color: #60a5fa; }
 .lamp-icon { color: #facc15; }
 .mist-icon { color: #38bdf8; }
 .auto-icon { color: #a78bfa; }
@@ -169,6 +236,11 @@ body {
 @keyframes spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
+}
+
+.control-item:has(input:checked) .drink-icon {
+  color: #3b82f6;
+  filter: drop-shadow(0 0 6px #60a5fa);
 }
 
 .control-item:has(input:checked) .lamp-icon {
@@ -334,7 +406,7 @@ import {
   SparklesIcon,
   ArrowPathIcon 
 } from '@heroicons/vue/24/solid'
-import { Fan } from 'lucide-vue-next'
+import { Fan, Droplet, Sliders } from 'lucide-vue-next'
 
 
 const API = 'http://192.168.100.82:5000'
@@ -343,9 +415,12 @@ const realStatus = ref({})
 
 //Control State
 const fan = ref(false)
+const drink = ref(false)
 const lamp = ref(false)
 const mist = ref(false)
 const auto = ref(false)
+const serverTime = ref(0)
+const realtime = ref({})
 
 //Data Sensor
 const suhu = ref(0)
@@ -357,11 +432,63 @@ let lastId = null
 let isFirstLoad = true
 let isUpdating = false
 
+const sp_suhu = ref(0)
+const sp_hum = ref(0)
+const sp_gas = ref(0)
+
+const current_sp = ref({
+  suhu: 0,
+  hum: 0,
+  gas: 0
+})
+
+const saveSetpoint = async () => {
+  await axios.post(`${API}/setpoint`, {
+    suhu: sp_suhu.value,
+    hum: sp_hum.value,
+    gas: sp_gas.value
+  })
+
+  // refresh setpoint aktif
+  loadSetpoint()
+}
+
+const setpoint = async () => {
+  await axios.post(`${API}/setpoint`, {
+    suhu: 0,
+    hum: 0,
+    gas: 0
+  })
+}
+
+const loadSetpoint = async () => {
+  const res = await axios.get(`${API}/get-setpoint`)
+
+  current_sp.value = res.data
+
+  // isi default form (sekali aja kalau kosong)
+  if (sp_suhu.value === 0) {
+    sp_suhu.value = res.data.suhu
+    sp_hum.value = res.data.hum
+    sp_gas.value = res.data.gas
+  }
+}
+
 // toggle function (Button)
 const toggleFan = async () => {
   isUpdating = true
 
   await axios.post(`${API}/fan`, { state: fan.value })
+
+  setTimeout(() => {
+    isUpdating = false
+  }, 800)
+}
+
+const toggleDrink = async () => {
+  isUpdating = true
+
+  await axios.post(`${API}/drink`, { state: drink.value })
 
   setTimeout(() => {
     isUpdating = false
@@ -412,7 +539,15 @@ const createChart = (ctx, label, color) => {
         {
           label: label,
           data: [],
-          borderColor: color
+          borderColor: color,
+          animation: false
+        },
+        {
+          label: 'Setpoint',
+          data: [],
+          borderColor: 'white',
+          borderDash: [5, 5], 
+          animation: false
         }
       ]
     },
@@ -438,15 +573,17 @@ const initChart = () => {
   chartGas = createChart(document.getElementById('chartGas'), 'Gas', 'red')
 }
 
-const pushData = (chart, value, time) => {
+const pushData = (chart, value, sp, time) => {
 
   if (chart.data.labels.length > 20) {
     chart.data.labels.shift()
     chart.data.datasets[0].data.shift()
+    chart.data.datasets[1].data.shift()
   }
 
   chart.data.labels.push(time)
   chart.data.datasets[0].data.push(value)
+  chart.data.datasets[1].data.push(sp)
 
   chart.options.scales = {
     x: {
@@ -466,15 +603,19 @@ const updateChart = (data) => {
     second: '2-digit'
   })
 
-  pushData(chartSuhu, data.suhu, time)
-  pushData(chartHum, data.humidity, time)
-  pushData(chartGas, data.gas, time)
+
+  pushData(chartSuhu, data.suhu, current_sp.value.suhu, time)
+  pushData(chartHum, data.humidity, current_sp.value.hum, time)
+  pushData(chartGas, data.gas, current_sp.value.gas, time)
 }
 
 const loadAll = async () => {
   try {
     const res = await axios.get(`${API}/all`)
     const data = res.data
+    serverTime.value = data.server_time || 0
+    realtime.value = data.realtime || {}
+
 
     if (data.sensor.length === 0) return
 
@@ -487,6 +628,7 @@ const loadAll = async () => {
 
     if (!isUpdating) {
       fan.value = data.status.fan ?? false
+      drink.value = data.status.drink ?? false
       lamp.value = data.status.lamp ?? false
       mist.value = data.status.mist ?? false
       auto.value = data.status.auto ?? false
@@ -504,12 +646,15 @@ const loadAll = async () => {
 
         chartSuhu.data.labels.push(timeLabel)
         chartSuhu.data.datasets[0].data.push(d.suhu)
+        chartSuhu.data.datasets[1].data.push(current_sp.value.suhu)
 
         chartHum.data.labels.push(timeLabel)
         chartHum.data.datasets[0].data.push(d.humidity)
+        chartHum.data.datasets[1].data.push(current_sp.value.hum)
 
         chartGas.data.labels.push(timeLabel)
         chartGas.data.datasets[0].data.push(d.gas)
+        chartGas.data.datasets[1].data.push(current_sp.value.gas)
       })
 
       chartSuhu.update()
@@ -534,15 +679,33 @@ const loadAll = async () => {
 
 
 const isOnline = computed(() => {
-  if (!realStatus.value.last_update) return false
+  if (!realtime.value.uptime) return false
 
   const now = Date.now() / 1000
-  return (now - realStatus.value.last_update) < 5
+
+  // pakai waktu server terakhir update sensor
+  return (now - realtime.value.last_update) < 5
+})
+
+const uptime = computed(() => {
+  const sec = realtime.value.uptime || 0
+
+  const h = Math.floor(sec / 3600)
+  const m = Math.floor((sec % 3600) / 60)
+  const s = sec % 60
+
+  return `${h}h ${m}m ${s}s`
+})
+
+const serverClock = computed(() => {
+  const date = new Date(serverTime.value * 1000)
+  return date.toLocaleTimeString()
 })
 
 onMounted(() => {
   initChart()
   loadAll()
-  setInterval(loadAll, 100)
+  loadSetpoint()
+  setInterval(loadAll, 1000)
 })
 </script>

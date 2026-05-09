@@ -5,7 +5,8 @@ import os
 import mysql.connector
 import atexit
 import time
-
+import paho.mqtt.client as mqtt
+import json
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DIST_DIR = os.path.join(BASE_DIR, 'iot-dashboard', 'dist')
@@ -22,7 +23,14 @@ current_command = {
     "mist": False
 }
 
+latest_setpoint = {
+    "suhu": 0,
+    "hum": 0,
+    "gas": 0,
+    "last_update": 0
+}
 latest_status = {}
+latest_sensor = {}
 
 DB_CONFIG = {
     "host": "127.0.0.1",
@@ -39,6 +47,58 @@ def get_camera():
     if camera is None:
         camera = Camera()
     return camera
+
+# MQTT SETUP
+MQTT_BROKER = "192.168.100.82"
+
+def on_connect(client, userdata, flags, rc):
+    print("MQTT Connected:", rc)
+    client.subscribe("iot/sensor")
+    client.subscribe("iot/status")
+    client.subscribe("iot/setpoint/status")
+
+def on_message(client, userdata, msg):
+    global latest_sensor, latest_status, latest_setpoint
+
+    try:
+        data = json.loads(msg.payload.decode())
+    except:
+        print("JSON ERROR")
+        return
+
+    if msg.topic == "iot/sensor":
+        latest_sensor = data
+        latest_sensor["last_update"] = time.time()
+
+
+        # simpan ke DB
+        db = get_db()
+        cursor = db.cursor()
+
+        cursor.execute("""
+            INSERT INTO sensor_data (suhu, humidity, gas)
+            VALUES (%s, %s, %s)
+        """, (data["suhu"], data["humidity"], data["gas"]))
+
+        db.commit()
+        cursor.close()
+        db.close()
+
+    elif msg.topic == "iot/status":
+        latest_status = data
+        latest_status["last_update"] = time.time()
+
+    elif msg.topic == "iot/setpoint/status":
+        latest_setpoint = data
+        latest_setpoint["last_update"] = time.time()
+
+
+mqtt_client = mqtt.Client()
+mqtt_client.on_connect = on_connect
+mqtt_client.on_message = on_message
+
+mqtt_client.connect(MQTT_BROKER, 1883, 60)
+mqtt_client.loop_start()
 
 @app.route('/')
 def serve_vue():
@@ -67,7 +127,9 @@ def get_all():
 
     return jsonify({
         "sensor": sensor,
-        "status": latest_status if latest_status else {}
+        "status": latest_status,
+        "realtime": latest_sensor,
+        "server_time": time.time()
     })
 
 # DATA SENSOR
@@ -94,8 +156,10 @@ def get_data():
 # DATA CONTROL
 @app.route('/feed', methods=['POST'])
 def feed():
-    if not current_command["feed"]:
-        current_command["feed"] = True
+    mqtt_client.publish("iot/control", json.dumps({
+        "feed": True
+    }))
+
     return {"status": "ok"}
 
 @app.route('/feed_reset', methods=['POST'])
@@ -103,55 +167,68 @@ def feed_reset():
     current_command["feed"] = False
     return {"status": "ok"}
 
+
 @app.route('/lamp', methods=['POST'])
 def lamp():
     state = request.json['state']
-    current_command["lamp"] = state
+
+    mqtt_client.publish("iot/control", json.dumps({
+        "lamp": state
+    }))
+
     return {"status": "ok"}
 
 @app.route('/auto', methods=['POST'])
 def auto():
     state = request.json['state']
-    current_command["auto"] = state
+
+    mqtt_client.publish("iot/control", json.dumps({
+        "auto": state
+    }))
+
     return {"status": "ok"}
 
 @app.route('/mist', methods=['POST'])
 def mist():
     state = request.json['state']
-    current_command["mist"] = state
+
+    mqtt_client.publish("iot/control", json.dumps({
+        "mist": state
+    }))
+
     return {"status": "ok"}
 
 @app.route('/fan', methods=['POST'])
 def fan():
     state = request.json['state']
-    current_command["fan"] = state
-    return {"status": "ok"}
 
-@app.route('/update-status', methods=['POST'])
-def update_status():
-    global latest_status
-    data = request.json
-
-    if not data:
-        return {"status": "error"}
-
-    latest_status.update(data)
-
-    latest_status["last_update"] = time.time()
+    mqtt_client.publish("iot/control", json.dumps({
+        "fan": state
+    }))
 
     return {"status": "ok"}
+
+@app.route('/drink', methods=['POST'])
+def drink():
+    state = request.json['state']
+
+    mqtt_client.publish("iot/control", json.dumps({
+        "drink": state
+    }))
+
+    return {"status": "ok"}
+
 
 @app.route('/get-status')
 def get_status():
-    return latest_status if latest_status else {
-        "fan": False,
-        "mist": False,
-        "lamp": False,
-        "auto": False,
-        "suhu": 0,
-        "humidity": 0,
-        "gas": 0
-    }
+    return {
+    **latest_status,
+    **latest_sensor,
+}
+
+@app.route('/get-setpoint')
+def get_setpoint():
+    return latest_setpoint
 
 
 # DATA SETPOINT
@@ -176,37 +253,21 @@ def set_setpoint():
     cursor.close()
     db.close()
 
+    latest_setpoint.update({
+        "suhu": suhu,
+        "hum": hum,
+        "gas": gas,
+        "last_update": time.time()
+    })
+
+
+    mqtt_client.publish("iot/setpoint", json.dumps({
+        "suhu": suhu,
+        "hum": hum,
+        "gas": gas
+    }), retain=True)
+
     return {"status": "ok"}
-
-@app.route('/get-setpoint')
-def get_setpoint():
-    db = get_db()
-    cursor = db.cursor(dictionary=True)
-
-    cursor.execute("SELECT * FROM setpoint WHERE id=1")
-    result = cursor.fetchone()
-
-    cursor.close()
-    db.close()
-
-    if result:
-        return {
-        "suhu": result['suhu'],
-        "hum": result['hum'],
-        "gas": result['gas']
-        }   
-    
-    else:
-        return {"suhu": 0, "hum": 0, "gas": 0}
-
-
-@app.route('/get-command')
-def get_command():
-    cmd = current_command.copy()
-
-    current_command["feed"] = False
-
-    return cmd
 
 @app.route('/stream')
 def stream():
