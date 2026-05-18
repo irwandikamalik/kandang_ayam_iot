@@ -3,7 +3,10 @@ import { defineStore } from 'pinia'
 export const useAppStore = defineStore('app', {
 
   state: () => ({
-    isDark: true,
+    isDark:       
+      localStorage.getItem('theme')
+      !== 'light',
+
     isOnline: false,
 
     serverClock: '',

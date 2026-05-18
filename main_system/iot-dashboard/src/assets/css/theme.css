@@ -1,0 +1,14 @@
+:root {
+  --bg-light: #ffffff;
+  --bg: #0b1220;  
+  --card: rgba(255,255,255,0.05);
+  --text: #e2e8f0;
+  --text-light: #0f172a;
+
+  --light-blue: #00f7ff;
+  --blue: #0e9edb;
+  --purple: #a78bfa;
+  --green: #34d399;
+  --orange: #fb923c;
+  --red: #f87171;
+}
